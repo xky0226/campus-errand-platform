@@ -1,0 +1,20 @@
+# 仓库里统一存 LF，检出时按平台转换。
+* text=auto
+
+*.java text diff=java
+*.xml  text
+*.yml  text
+*.sql  text
+*.md   text
+*.py   text diff=python
+*.ts   text
+*.vue  text
+
+# Windows 批处理必须是 CRLF，否则 cmd 解析会出问题
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.jar  binary

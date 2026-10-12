@@ -1,0 +1,60 @@
+# ── 构建产物 ──────────────────────────
+target/
+dist/
+build/
+*.jar
+*.war
+
+# ── 依赖 ─────────────────────────────
+node_modules/
+unpackage/
+
+# ── IDE ──────────────────────────────
+.idea/
+.vscode/
+*.iml
+
+# ── 运行日志 / 临时 ────────────────────
+logs/
+*.log
+run-boot*.log
+
+# ── 密钥 / 本地配置 ────────────────────
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.properties
+
+# ── 测试产物 ──────────────────────────
+.pytest_cache/
+__pycache__/
+allure-results/
+allure-report/
+tests/reports/
+
+# ── 课程资料 / 大文件（不属于代码）──────
+*.docx
+*.pdf
+*.zip
+image/
+素材总览.png
+1.项目笔记-node+uniapp （首页）.pdf
+
+# ── 嵌套的 git 仓库（避免变成 submodule）─
+web/
+
+# ── 不在交付范围的草稿 ──────────────────
+ai-demo/
+CodeGenerator/
+生成占位图.py
+姓名+学号+作业一(1).docx
+
+# ── 培训机构讲义 / 讲师材料（不是本人的代码）──
+# 43MB 的课程引导文档与讲义转文字稿，属于授课方版权，不属于项目产出。
+# 仓库面向「这是我做了什么」，不是「我上了什么课」，故整体排除。
+项目引导/
+day1-notes.txt
+
+# ── 本机 Maven 镜像配置 ──────────────────
+settings.xml
