@@ -1,0 +1,86 @@
+{
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		{
+			"path": "pages/index/index",
+			"style": {
+				// 讲义 §11 这里留的是模板默认的 "uni-app"，但底部 tabBar 和 globalStyle
+				// 都写的是「校园帮」，导航栏显示 uni-app 太出戏，统一成校园帮
+				"navigationBarTitleText": "校园帮"
+			}
+		},
+		{
+			"path": "pages/auth/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/auth/register",
+			"style": {
+				"navigationBarTitleText": "注册"
+			}
+		},
+		{
+			"path": "pages/order/create",
+			"style": {
+				"navigationBarTitleText": "发布订单"
+			}
+		},
+		{
+			"path": "pages/order/list",
+			"style": {
+				"navigationBarTitleText": "订单列表"
+			}
+		},
+		{
+			"path": "pages/order/detail",
+			"style": {
+				"navigationBarTitleText": "订单详情",
+				// 讲义没写这行：detail.vue 里定义了 onPullDownRefresh，
+				// 不开这个开关下拉刷新不会触发
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			// 考核作业「个人中心」。讲义 Part A 的项目结构树里列了这个文件名
+			// （pages/user/profile.vue），但没给页面代码，页面是后写的
+			"path": "pages/user/profile",
+			"style": {
+				"navigationBarTitleText": "个人中心"
+			}
+		},
+		{
+			// AI 会话页。讲义「5-2 流式对话与角色预设」只给了后端接口，
+			// 没有前端页面，这个页面是按那一节的接口自己接的
+			"path": "pages/ai/chat",
+			"style": {
+				"navigationBarTitleText": "AI 助手"
+			}
+		}
+	],
+	"tabBar": {
+		"color": "#64748b",
+		"selectedColor": "#6366f1",
+		"backgroundColor": "#0f172a",
+		"borderStyle": "black",
+		"list": [{
+			"pagePath": "pages/index/index",
+			"text": "首页"
+		}, {
+			"pagePath": "pages/order/list",
+			"text": "订单广场"
+		}, {
+			// 考核作业要求新增的 tabBar 项
+			"pagePath": "pages/user/profile",
+			"text": "个人中心"
+		}]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "校园帮",
+		"navigationBarBackgroundColor": "#0f172a",
+		"backgroundColor": "#0f172a",
+		"backgroundTextStyle": "dark"
+	},
+	"uniIdRouter": {}
+}

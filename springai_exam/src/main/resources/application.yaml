@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: springai_exam
+  ai:
+    openai:
+      # 从环境变量读取 API Key，不写死在代码里（任务一评分点）。
+      # 本机配置的是 DEEPSEEK_API_KEY；如果换成阿里云百炼，把这里改成 ${DASHSCOPE_API_KEY:sk-xxx} 即可。
+      # 冒号后面是「取不到环境变量时的兜底值」，正式提交时不要外传含真实密钥的文件。
+      # 注意：这个值必须保持纯 ASCII —— 密钥会进 HTTP 的 Authorization 请求头，写成中文会报
+      # "Unexpected char ... in Authorization value"。
+      api-key: ${DEEPSEEK_API_KEY:sk-replace-with-your-own-key}
+      # 兼容 OpenAI 协议的服务地址。
+      # 阿里云百炼：https://dashscope.aliyuncs.com/compatible-mode/v1
+      # 硅基流动：  https://api.siliconflow.cn
+      base-url: https://api.deepseek.com
+      chat:
+        model: deepseek-chat
+  servlet:
+    encoding:
+      force: true           # 强制 UTF-8，解决中文乱码
+
+# 任务五-①：把 Spring AI 的日志级别调到 debug，控制台才能看到 SimpleLoggerAdvisor 打的请求 / 响应日志
+logging:
+  level:
+    org.springframework.ai: debug
