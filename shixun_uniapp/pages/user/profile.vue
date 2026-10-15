@@ -30,9 +30,9 @@
 					<text class="stat-value">{{ profile.completedOrders == null ? 0 : profile.completedOrders }}</text>
 					<text class="stat-label">完成订单</text>
 				</view>
-				<view class="stat-item">
+				<view class="stat-item" @tap="goWallet">
 					<text class="stat-value">{{ profile.walletBalance == null ? '0.00' : profile.walletBalance }}</text>
-					<text class="stat-label">余额(元)</text>
+					<text class="stat-label">余额(元) ›</text>
 				</view>
 			</view>
 
@@ -55,6 +55,33 @@
 					<text class="info-label">账号状态</text>
 					<text class="info-value">{{ profile.status === 1 ? '正常' : '已冻结' }}</text>
 				</view>
+			</view>
+
+			<!-- 实名认证入口：已认证了就不显示这块，不然纯占地方 -->
+			<view v-if="profile.verifiedStatus !== 1" class="section-card">
+				<view class="section-title">实名认证</view>
+				<!-- 审核中：只提示，不给再点进去重复提交（后端也会拒） -->
+				<template v-if="profile.verifiedStatus === 2">
+					<view class="verify-status verify-pending">
+						<text class="verify-status-title">资料审核中</text>
+						<text class="verify-status-desc">管理员正在核对你的学生证照片，通过后这里会变成「已认证」</text>
+					</view>
+					<button class="btn plain" @tap="goVerify">查看已提交的资料</button>
+				</template>
+				<!-- 0 / null：未认证，可以提交。3 的含义不明确，不引导用户去重复提交 -->
+				<template v-else-if="profile.verifiedStatus === 0 || profile.verifiedStatus == null">
+					<view class="verify-status verify-todo">
+						<text class="verify-status-title">尚未实名认证</text>
+						<text class="verify-status-desc">上传学生证照片，管理员审核通过后即可发布和接取订单</text>
+					</view>
+					<button class="btn primary" @tap="goVerify">去实名认证</button>
+				</template>
+				<template v-else>
+					<view class="verify-status verify-todo">
+						<text class="verify-status-title">认证状态异常</text>
+						<text class="verify-status-desc">当前认证状态码是 {{ profile.verifiedStatus }}，请联系管理员确认</text>
+					</view>
+				</template>
 			</view>
 
 			<!-- 资料修改 -->
@@ -89,6 +116,10 @@
 					<view class="entry" @tap="goOrders('running')">
 						<text class="entry-icon">接</text>
 						<text class="entry-text">我接取的</text>
+					</view>
+					<view class="entry" @tap="goWallet">
+						<text class="entry-icon">钱</text>
+						<text class="entry-text">我的钱包</text>
 					</view>
 				</view>
 			</view>
@@ -259,6 +290,16 @@
 				uni.setStorageSync('orderListTab', tab)
 				uni.switchTab({
 					url: '/pages/order/list'
+				})
+			},
+			goWallet() {
+				uni.navigateTo({
+					url: '/pages/wallet/wallet'
+				})
+			},
+			goVerify() {
+				uni.navigateTo({
+					url: '/pages/user/verify'
 				})
 			},
 			goLogin() {
@@ -464,6 +505,40 @@
 		margin-bottom: 24rpx;
 		color: #94a3b8;
 		font-size: 24rpx;
+	}
+
+	.verify-status {
+		display: flex;
+		flex-direction: column;
+		padding: 24rpx;
+		margin-bottom: 24rpx;
+		border-radius: 18rpx;
+	}
+
+	.verify-todo {
+		background: #fff7ed;
+	}
+
+	.verify-pending {
+		background: #eff6ff;
+	}
+
+	.verify-status-title {
+		color: #334155;
+		font-size: 28rpx;
+		font-weight: 700;
+	}
+
+	.verify-status-desc {
+		margin-top: 10rpx;
+		color: #94a3b8;
+		font-size: 24rpx;
+		line-height: 1.5;
+	}
+
+	.plain {
+		background: #e2e8f0;
+		color: #334155;
 	}
 
 	.entry-row {

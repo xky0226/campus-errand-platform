@@ -29,9 +29,34 @@ const routes = [
                 component: () => import('@/views/UserManage.vue')
             },
             {
+                // 需求 3.5.1 剩下的实名认证审核。后端 GET /admin/users/pending-verify
+                // + POST /admin/users/{id}/verify，页面照 UserManage.vue 的写法自己写的。
+                path: '/verify',
+                name: 'VerifyManage',
+                component: () => import('@/views/VerifyManage.vue')
+            },
+            {
                 path: '/orders',
                 name: 'Orders',
                 component: () => import('@/views/Orders.vue')
+            },
+            {
+                // 需求 3.5.3 纠纷仲裁中心。页面照 UserManage.vue 的写法自己写的，
+                // 后端 GET /admin/appeals（列表）+ /{id}（详情）+ POST /{id}/handle（仲裁）。
+                path: '/appeals',
+                name: 'AppealManage',
+                component: () => import('@/views/AppealManage.vue')
+            },
+            {
+                // 需求 3.5.4。后端早就有 /admin/finance/withdrawals + /audit，只是一直没有页面。
+                path: '/withdraws',
+                name: 'WithdrawManage',
+                component: () => import('@/views/WithdrawManage.vue')
+            },
+            {
+                path: '/finance',
+                name: 'Finance',
+                component: () => import('@/views/Finance.vue')
             }
         ]
     }

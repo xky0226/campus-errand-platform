@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ollama-demo
+  ai:
+    ollama:
+      # Ollama 服务地址。Ollama 装好后会常驻在 11434 端口。
+      # 用 127.0.0.1 而不是 localhost：某些 Windows 环境下 localhost 会先解析到 IPv6 ::1，
+      # 而 Ollama 只监听 IPv4，会出现「明明服务在跑却连不上」的假象。
+      base-url: http://127.0.0.1:11434
+      chat:
+        # 本地模型名，必须和 ollama list 里显示的完全一致。
+        # 默认装的是最小的 1.5b，显存够可以换成 deepseek-r1:7b / 14b（见 README 选型表）。
+        model: deepseek-r1:1.5b
+  servlet:
+    encoding:
+      force: true           # 强制 UTF-8，解决中文乱码
+
+# 本地调试时把 Spring AI 的日志调到 debug，能看到发给 Ollama 的请求和返回
+logging:
+  level:
+    org.springframework.ai: debug

@@ -58,3 +58,23 @@ day1-notes.txt
 
 # ── 本机 Maven 镜像配置 ──────────────────
 settings.xml
+
+# ── 实训报告与它的生成工具（课程材料，不是项目代码）──
+# 大报告/ 里除了 PRD 和截图，还有「小组三份/分工对照.md」—— 那里面是三位同学的
+# 真名和学号。仓库是要公开的，别人的个人信息不该被顺带推上去；
+# 而且「我做了什么」的证据是代码，不是交给老师的报告。
+大报告/
+
+# tools/ 下这批是报告生成器与调试草稿：build_dabao.py 是生成器，
+# _cc.txt / _dbg.txt / _wins.txt 是抓下来的临时 dump —— 里面有明文 DB 口令。
+# 只保留 build_resume.py（已经在库里的那个）。
+tools/_*
+tools/build_dabao.py
+tools/build_dabao_fill.py
+tools/finish_dabao.py
+tools/shots.py
+tools/wins.py
+
+# ── 运行期上传的文件（接口真的往盘上写过东西）──
+# 这些是跑接口测试时产生的，机器不同内容就不同，属于运行产物。
+shixun/uploads/

@@ -7,6 +7,34 @@
 // AI 接口直接返回纯文本，没有 Result 包装，也没有登录态。
 const AI_BASE_URL = 'http://localhost:8080'
 
+// ===== 会话 ID（讲义 5-4 模块 06 对话记忆）=====
+// 后端挂上 MessageChatMemoryAdvisor 之后，每个接口都必须带 chatId，
+// 不带会抛 conversationId cannot be null。
+// 同一个 chatId = 同一场对话，模型能把上文一起发给大模型（这就是「记忆」）；
+// 换一个 chatId 就是全新的一场对话。
+const CHAT_ID_KEY = 'ai_chat_id'
+
+function newChatId() {
+	return 'app-' + Date.now() + '-' + Math.floor(Math.random() * 10000)
+}
+
+// 取当前会话 ID，没有就生成一个存起来 —— 这样退出页面再进来还是同一场对话
+export function getChatId() {
+	let id = uni.getStorageSync(CHAT_ID_KEY)
+	if (!id) {
+		id = newChatId()
+		uni.setStorageSync(CHAT_ID_KEY, id)
+	}
+	return id
+}
+
+// 开一场新对话（页面上点「清空」时调用）
+export function resetChatId() {
+	const id = newChatId()
+	uni.setStorageSync(CHAT_ID_KEY, id)
+	return id
+}
+
 // 把「可能被切断的 UTF-8 字节」留到下一块再解。
 // 小程序的分块回调是按字节切的，一个汉字 3 个字节，很可能被切成两半，
 // 直接逐块解码会出乱码，所以必须在块之间保留没解完的字节。
@@ -64,7 +92,8 @@ function createUtf8Decoder() {
 export function chatOnce(question) {
 	return new Promise((resolve, reject) => {
 		uni.request({
-			url: AI_BASE_URL + '/ai/chat?question=' + encodeURIComponent(question),
+			url: AI_BASE_URL + '/ai/chat?chatId=' + encodeURIComponent(getChatId())
+				+ '&question=' + encodeURIComponent(question),
 			method: 'GET',
 			timeout: 60000,
 			success(res) {
@@ -91,7 +120,8 @@ export function chatOnce(question) {
 // #ifdef H5
 export function chatStream(question, { onChunk, onDone, onError }) {
 	const decoder = new TextDecoder('utf-8')
-	fetch(AI_BASE_URL + '/ai/chat2?question=' + encodeURIComponent(question))
+	fetch(AI_BASE_URL + '/ai/chat2?chatId=' + encodeURIComponent(getChatId())
+		+ '&question=' + encodeURIComponent(question))
 		.then(res => {
 			if (!res.ok) throw new Error('HTTP ' + res.status)
 			const reader = res.body.getReader()
@@ -114,7 +144,8 @@ export function chatStream(question, { onChunk, onDone, onError }) {
 export function chatStream(question, { onChunk, onDone, onError }) {
 	const decode = createUtf8Decoder()
 	const task = wx.request({
-		url: AI_BASE_URL + '/ai/chat2?question=' + encodeURIComponent(question),
+		url: AI_BASE_URL + '/ai/chat2?chatId=' + encodeURIComponent(getChatId())
+			+ '&question=' + encodeURIComponent(question),
 		method: 'GET',
 		enableChunked: true, // 关键：不打开的话拿到的是一次性完整响应
 		timeout: 60000,

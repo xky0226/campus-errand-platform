@@ -19,8 +19,9 @@
 			<text class="empty-desc">切换分类或稍后再来看看</text>
 		</view>
 
-		<!-- 遍历订单列表 -->
-		<view v-for="item in orders" :key="item.id" class="order-card" hover-class="card-hover"
+		<!-- 遍历订单列表。只渲染「当前已加载到第几页」那一段，
+		     数据其实一次性取回来了，上拉加载就是把这个切片范围往后放 -->
+		<view v-for="item in visibleOrders" :key="item.id" class="order-card" hover-class="card-hover"
 			@tap="goDetail(item.id)">
 			<view class="row between">
 				<view class="type-chip"><text>{{ item.taskType }}</text></view>
@@ -34,6 +35,11 @@
 				<view v-if="currentTab === 'available'" class="accept-btn" @tap.stop="handleAccept(item.id)">
 					<text>接单</text></view>
 			</view>
+		</view>
+
+		<!-- 上拉加载的底部提示 -->
+		<view v-if="orders && orders.length > 0" class="load-more">
+			<text>{{ hasMore ? '上拉加载更多' : '— 没有更多了 —' }}</text>
 		</view>
 	</view>
 </template>
@@ -51,6 +57,11 @@
 			return {
 				currentTab: 'available',
 				orders: [],
+				// 分页：后端三个列表接口都是一次性返回 Result<List<Orders>>，没有 page/pageSize 参数，
+				// 所以这里是**前端分页** —— 数据全取回来，只控制渲染多少条。
+				// 数据量小（一个 tab 几十条）够用，也不用去动已经跑通的老接口。
+				pageNo: 1,
+				pageSize: 10,
 				statusMap: {
 					0: '待支付',
 					1: '待接单',
@@ -60,6 +71,15 @@
 					5: '已取消',
 					6: '申诉中'
 				}
+			}
+		},
+		computed: {
+			// 当前应该渲染到第几条
+			visibleOrders() {
+				return this.orders.slice(0, this.pageNo * this.pageSize)
+			},
+			hasMore() {
+				return this.visibleOrders.length < this.orders.length
 			}
 		},
 		onShow() {
@@ -72,12 +92,27 @@
 			}
 			this.loadOrders()
 		},
+		// 下拉刷新：pages.json 里给这个页面开了 enablePullDownRefresh 才会触发
+		async onPullDownRefresh() {
+			await this.loadOrders()
+			// 不调这个圈会一直转
+			uni.stopPullDownRefresh()
+		},
+		// 上拉到底自动触发（不需要在 pages.json 里配开关）
+		onReachBottom() {
+			if (this.hasMore) {
+				this.pageNo += 1
+			}
+		},
 		methods: {
 			async switchTab(tab) {
 				this.currentTab = tab
 				await this.loadOrders()
 			},
 			async loadOrders() {
+				// 每次重新取数据都回到第一页：换分类、下拉刷新、从别的页面切回来
+				// 都属于「重新加载」，接着上次的页码会显得数据对不上
+				this.pageNo = 1
 				if (this.currentTab === 'available') {
 					this.orders = await getAvailableOrders() || []
 				} else if (this.currentTab === 'published') {
@@ -323,5 +358,16 @@
 		margin-top: 14rpx;
 		color: #94a3b8;
 		font-size: 26rpx;
+	}
+
+	/* 上拉加载的底部提示 */
+	.load-more {
+		padding: 30rpx 0 10rpx;
+		text-align: center;
+	}
+
+	.load-more text {
+		color: #a3a9bd;
+		font-size: 24rpx;
 	}
 </style>

@@ -2,9 +2,11 @@ package com.example.campus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.campus.common.JwtUtil;
+import com.example.campus.common.VerifyStatus;
 import com.example.campus.dto.AdminLoginRequest;
 import com.example.campus.dto.LoginResponse;
 import com.example.campus.dto.Result;
+import com.example.campus.dto.VerifySubmitRequest;
 import com.example.campus.dto.WxLoginRequest;
 import com.example.campus.entity.Users;
 import com.example.campus.mapper.UsersMapper;
@@ -248,6 +250,73 @@ public class AuthController {
                 fresh.getVerifiedStatus(),
                 fresh.getCreditScore()
         ));
+    }
+
+    // ================= 实名认证（需求 3.5.1 用户管理 / 移动端） =================
+
+    /**
+     * 提交实名认证资料，提交后进入「审核中」，等管理端在 /verify 页处理。
+     * <p>
+     * 为什么必须单开这个接口：{@code PUT /auth/profile} 明确只允许改昵称 / 头像 / 手机号，
+     * 姓名、学号、学生证图用户自己根本提交不了 —— 没有这个接口，整条实名认证链路就没有起点，
+     * 管理端的「认证审核」页永远是空的。
+     */
+    @PostMapping("/verify")
+    public Result<Users> submitVerify(@RequestBody VerifySubmitRequest req, HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        if (userId == null) {
+            return Result.unauthorized("请先登录");
+        }
+
+        Users user = userMapper.selectById(userId);
+        if (user == null || user.getDeleted() == null || user.getDeleted() != 0) {
+            return Result.error("用户不存在");
+        }
+        // 已经认证过 / 正在审核中的不给重复提交，避免刷审核队列
+        if (VerifyStatus.PASSED == intOr(user.getVerifiedStatus(), VerifyStatus.NONE)) {
+            return Result.error("你已经通过实名认证，无需重复提交");
+        }
+        if (VerifyStatus.PENDING == intOr(user.getVerifiedStatus(), VerifyStatus.NONE)) {
+            return Result.error("认证资料正在审核中，请耐心等待审核结果");
+        }
+
+        String realName = req.getRealName() == null ? "" : req.getRealName().trim();
+        String studentId = req.getStudentId() == null ? "" : req.getStudentId().trim();
+        String certUrl = req.getStudentCertUrl() == null ? "" : req.getStudentCertUrl().trim();
+
+        // 姓名：2~10 个汉字。库里 seed 数据是「王明」「李同学」这种，不排除「XX同学」
+        if (!realName.matches("^[\\u4e00-\\u9fa5]{2,10}$")) {
+            return Result.error("请填写 2~10 个汉字的真实姓名");
+        }
+        if (studentId.isEmpty()) {
+            return Result.error("请填写学号");
+        }
+        if (certUrl.isEmpty()) {
+            return Result.error("请先上传学生证照片");
+        }
+        if (certUrl.length() > 512) {
+            // users.student_cert_url 是 varchar(512)，超了会直接 Data too long
+            return Result.error("学生证图片地址过长");
+        }
+        // 学号就是小程序端的登录账号（login 按 student_id 查用户）。
+        // 这里只校验一致性、不改它：改了用户自己就登不进来，而且等于允许把账号过户给别人。
+        if (!studentId.equals(user.getStudentId())) {
+            return Result.error("学号与注册时填写的不一致（注册学号：" + user.getStudentId()
+                    + "），如需修改请联系管理员");
+        }
+
+        Users patch = new Users();
+        patch.setId(userId);
+        patch.setRealName(realName);
+        patch.setStudentCertUrl(certUrl);
+        patch.setVerifiedStatus(VerifyStatus.PENDING);
+        userMapper.updateById(patch);
+
+        return Result.success(userMapper.selectById(userId));
+    }
+
+    private int intOr(Integer value, int fallback) {
+        return value == null ? fallback : value;
     }
 
 }

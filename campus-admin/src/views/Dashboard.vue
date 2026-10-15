@@ -13,7 +13,11 @@
       >
         <el-menu-item index="/DataView">首页</el-menu-item>
         <el-menu-item index="/users">用户管理</el-menu-item>
+        <el-menu-item index="/verify">认证审核</el-menu-item>
         <el-menu-item index="/orders">订单管理</el-menu-item>
+        <el-menu-item index="/appeals">纠纷仲裁</el-menu-item>
+        <el-menu-item index="/withdraws">提现审核</el-menu-item>
+        <el-menu-item index="/finance">财务统计</el-menu-item>
       </el-menu>
     </aside>
 

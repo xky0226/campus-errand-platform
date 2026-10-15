@@ -29,7 +29,11 @@
 		{
 			"path": "pages/order/list",
 			"style": {
-				"navigationBarTitleText": "订单列表"
+				"navigationBarTitleText": "订单列表",
+				// 报告模板「实训内容 2(1)」点名订单列表要有下拉刷新 + 上拉加载分页。
+				// 下拉刷新由这个开关控制（页面里的 onPullDownRefresh 不配它就永远不触发）；
+				// 上拉加载不需要开关，到底部会自动触发 onReachBottom。
+				"enablePullDownRefresh": true
 			}
 		},
 		{
@@ -39,6 +43,15 @@
 				// 讲义没写这行：detail.vue 里定义了 onPullDownRefresh，
 				// 不开这个开关下拉刷新不会触发
 				"enablePullDownRefresh": true
+			}
+		},
+		{
+			// 订单聊天。对应需求「移动端前台功能 1、聊天界面」：
+			// 接单之后发布者和跑腿员在这条通道里沟通，从订单详情页的「联系对方」进入。
+			// 管理端仲裁时看到的是同一段对话（3.5.3 的「查看聊天记录」）
+			"path": "pages/order/chat",
+			"style": {
+				"navigationBarTitleText": "订单聊天"
 			}
 		},
 		{
@@ -55,6 +68,22 @@
 			"path": "pages/ai/chat",
 			"style": {
 				"navigationBarTitleText": "AI 助手"
+			}
+		},
+		{
+			// 个人钱包。对应需求「移动端前台功能 5、个人钱包【交易记录、提现、充值】」，
+			// 从个人中心页进入
+			"path": "pages/wallet/wallet",
+			"style": {
+				"navigationBarTitleText": "我的钱包"
+			}
+		},
+		{
+			// 实名认证提交页。对应需求 3.5.1 用户管理的认证部分，
+			// 提交后进管理端「认证审核」队列，从个人中心页进入
+			"path": "pages/user/verify",
+			"style": {
+				"navigationBarTitleText": "实名认证"
 			}
 		}
 	],

@@ -4,17 +4,14 @@
 
     <div class="toolbar">
       <div class="tabs">
-        <!-- 展示订单所有的状态、可以进行筛选 -->
+        <!-- 展示订单所有的状态、可以进行筛选（筛选在服务端做，点一下重新查一次） -->
         <el-tag
           v-for="item in tabs"
           :key="item.value"
           :type="statusFilter === item.value ? 'primary' : 'info'"
           :effect="statusFilter === item.value ? 'dark' : 'plain'"
           class="tab"
-          @click="
-            statusFilter = item.value;
-            currentPage = 1;
-          "
+          @click="selectStatus(item.value)"
         >
           {{ item.label }}
         </el-tag>
@@ -26,17 +23,19 @@
         <el-input
           v-model="keyword"
           class="search-input"
-          placeholder="搜索订单号/类型/发布者"
+          placeholder="搜索订单号/类型/地点/发布者"
           clearable
-          @input="currentPage = 1"
+          @input="onKeywordInput"
         />
+        <!-- 导出的是「当前筛选条件下的那批」，不是全部 -->
+        <el-button :loading="exporting" @click="handleExport">导出报表</el-button>
       </div>
     </div>
 
     <!-- 卡片 -->
     <el-card>
       <div class="table-header">
-        <span>订单列表，共 {{ filteredOrders.length }} 条</span>
+        <span>订单列表，共 {{ orders.length }} 条</span>
         <el-button @click="loadOrders">刷新</el-button>
       </div>
       <!-- 表格组件展示订单列表 -->
@@ -105,7 +104,7 @@
         <el-pagination
           v-model:current-page="currentPage"
           :page-size="pageSize"
-          :total="filteredOrders.length"
+          :total="orders.length"
           layout="prev, pager, next, jumper, ->, total"
         />
       </div>
@@ -192,11 +191,12 @@
 
 <script setup>
 // 导入组件
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 // 请求处理函数
 import {
   fetchOrders,
+  exportOrders,
   createOrder,
   updateOrder,
   forceCancelOrder,
@@ -205,6 +205,7 @@ import {
 //定义对应绑定的数据变量
 const loading = ref(false);
 const submitting = ref(false);
+const exporting = ref(false);
 const orders = ref([]);
 const selected = ref(null);
 const detailVisible = ref(false);
@@ -260,43 +261,69 @@ const rules = {
   expectedTime: [{ required: true, message: "请选择预期完成时间", trigger: "change" }],
 };
 
-//根据订单状态进行筛选
-const filteredOrders = computed(() => {
-  const kw = keyword.value.trim().toLowerCase();
-  //使用filter进行条件过滤
-  return orders.value.filter((item) => {
-    const matchStatus = statusFilter.value === null || item.status === statusFilter.value;
-    const matchKeyword =
-      !kw ||
-      String(item.orderNo || "")
-        .toLowerCase()
-        .includes(kw) ||
-      String(item.taskType || "")
-        .toLowerCase()
-        .includes(kw) ||
-      String(item.publisherName || "")
-        .toLowerCase()
-        .includes(kw);
-    return matchStatus && matchKeyword;
-  });
-});
-
-//分页查询
+//分页查询。筛选已经在服务端做完了（需求 3.5.2），这里只负责按页切。
+//注意别在这里再 filter 一遍：改成服务端筛选之前这里有一份内存筛选，
+//留着就会变成「服务端筛一次、前端又筛一次」，关键词在两端规则不一样时特别难查。
 const pagedOrders = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
-  return filteredOrders.value.slice(start, start + pageSize);
+  return orders.value.slice(start, start + pageSize);
 });
 
 //页面加载后的查询调用
 onMounted(loadOrders);
 
+//输入框防抖用的定时器。不防抖的话每敲一个字就发一次请求，
+//而且这几个请求返回顺序不保证，慢的那个后到会把结果覆盖成旧的关键词的。
+let keywordTimer = null;
+
+onUnmounted(() => {
+  if (keywordTimer) clearTimeout(keywordTimer);
+});
+
+//当前筛选条件。空值一律不下发 —— 后端 status 是 Integer，
+//传 status= 这种空串会因为转换失败直接报 400
+function currentQuery() {
+  const query = {};
+  if (statusFilter.value !== null) query.status = statusFilter.value;
+  const kw = keyword.value.trim();
+  if (kw) query.keyword = kw;
+  return query;
+}
+
+function selectStatus(value) {
+  statusFilter.value = value;
+  currentPage.value = 1;
+  loadOrders();
+}
+
+function onKeywordInput() {
+  currentPage.value = 1;
+  if (keywordTimer) clearTimeout(keywordTimer);
+  keywordTimer = setTimeout(loadOrders, 300);
+}
+
 //订单查询请求处理
 async function loadOrders() {
   loading.value = true;
   try {
-    orders.value = (await fetchOrders()) || [];
+    orders.value = (await fetchOrders(currentQuery())) || [];
   } finally {
     loading.value = false;
+  }
+}
+
+//导出当前筛选条件下的订单报表。
+//失败时 @/api/download 抛出来的 message 就是后端那句业务提示，直接展示；
+//这里不能走 ElMessage 以外的兜底分支，否则用户点一下没反应会以为按钮坏了。
+async function handleExport() {
+  exporting.value = true;
+  try {
+    const filename = await exportOrders(currentQuery());
+    ElMessage.success(`已导出 ${orders.value.length} 条订单，文件名：${filename}`);
+  } catch (error) {
+    ElMessage.error(error.message || "导出失败");
+  } finally {
+    exporting.value = false;
   }
 }
 
@@ -371,7 +398,14 @@ async function submitOrder() {
 
 //取消订单
 async function cancelOrder(row) {
-  await ElMessageBox.confirm("确认强制取消该订单吗？", "提示", { type: "warning" });
+  // ElMessageBox.confirm 在点「取消」时是 reject 的。
+  // 直接 await 不接住的话，每次取消都会在控制台抛一个 unhandled rejection，
+  // 所以按 UserManage.vue 的写法用 try/catch 接一下再 return。
+  try {
+    await ElMessageBox.confirm("确认强制取消该订单吗？", "提示", { type: "warning" });
+  } catch {
+    return;
+  }
   await forceCancelOrder(row.id);
   ElMessage.success("订单已取消");
   await loadOrders();
@@ -379,9 +413,13 @@ async function cancelOrder(row) {
 
 //删除订单
 async function removeOrder(row) {
-  await ElMessageBox.confirm("确认删除该订单吗？删除后列表中将不再显示。", "提示", {
-    type: "warning",
-  });
+  try {
+    await ElMessageBox.confirm("确认删除该订单吗？删除后列表中将不再显示。", "提示", {
+      type: "warning",
+    });
+  } catch {
+    return;
+  }
   await deleteOrder(row.id);
   ElMessage.success("订单已删除");
   await loadOrders();

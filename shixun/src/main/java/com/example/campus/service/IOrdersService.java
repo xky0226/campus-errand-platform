@@ -1,5 +1,6 @@
 package com.example.campus.service;
 
+import com.example.campus.dto.AdminOrderQuery;
 import com.example.campus.dto.AdminOrderRequest;
 import com.example.campus.dto.OrderCreateRequest;
 import com.example.campus.entity.Orders;
@@ -19,6 +20,9 @@ public interface IOrdersService extends IService<Orders> {
 
     //查询业务逻辑方法
     public List<Orders> listOrders();
+
+    //按条件查询订单（需求 3.5.2）：status + keyword 都在数据库侧过滤，不传条件就等于查全部
+    public List<Orders> listOrders(AdminOrderQuery query);
 
     //根据id 查询订单详细
     public Orders getOrderDetail(Long orderId);

@@ -31,8 +31,9 @@ CONTENT_测试 = COMMON_EDU + [
     ("p", "主要技能：熟练 Python；软件测试；熟悉 Java、Spring Boot、MySQL；了解 Vue 3、uni-app 前端开发。"),
 
     ("h", "项目经历"),
-    ("kv", "校园帮 —— 校园生活服务平台（微信小程序 + 管理端）", "2026.09 – 2026.10"),
-    ("p", "项目描述：面向校园生活的跑腿服务平台，含移动端微信小程序与后台管理端。本人负责订单模块后端接口、管理员登录鉴权、管理端订单与用户管理页面，并独立搭建该项目的接口自动化测试。"),
+    ("kv", "校园帮 —— 校园生活服务平台（微信小程序 + 管理端）", ""),
+    ("p", "项目描述：面向校园生活的跑腿服务平台，含移动端微信小程序与后台管理端。本人负责订单模块后端接口、管理员登录鉴权、管理端订单与用户管理页面，并设计验收该项目的接口自动化测试。"),
+    ("b", "开发模式（AI 辅助）：", "项目采用 AI 辅助开发（Vibe Coding）——我负责业务拆解、接口契约设计与测试用例设计，编码由 AI 协作产出后逐条验收。"),
     ("p", "技术栈：Java / Spring Boot / MyBatis-Plus / MySQL / JWT / Vue 3 + TypeScript / uni-app / Python + Requests + Pytest + Allure"),
     ("b", "接口自动化（主要产出）：", "基于 Python + Requests + Pytest 搭建订单模块接口自动化测试：封装会话级 Token 与鉴权 Header、订单构造与数据库连接 fixture；编写 9 条带断言的用例，覆盖 6 个接口的正常流程、状态流转与「逻辑删除后不可见」等边界规则。"),
     ("b", "报告与数据校验：", "接入 Allure 生成可视化报告，并把请求 / 响应报文附加到报告，失败用例可直接看报文定位；用例直连 MySQL 校验落库结果（逻辑删除后行仍在、deleted 置 1），并清理自建数据保证用例可反复执行。"),
@@ -66,31 +67,27 @@ CONTENT_AI = COMMON_EDU + [
     ("p", "方向：Python 后端 + 大模型应用开发（RAG / Agent）"),
 
     ("h", "项目经历"),
-    ("kv", "企业知识库 RAG 问答系统（独立开发）", "2026.08 – 2026.09"),
-    ("p", "技术栈：Python / LangChain / ChromaDB / bge-small-zh-v1.5 / BM25 / CrossEncoder / FastAPI"),
-    ("b", "混合检索 + 重排：", "向量语义检索与 BM25 关键词检索经 RRF 融合召回，再由 CrossEncoder 逐对重排取 Top-3。实测查询「年假有几天？」命中块得分 0.8596，其余块 <0.03（分差 30 倍）。"),
-    ("b", "定位并修复「双索引不同步」缺陷：", "上传新文档时只写向量库、未重建 BM25 倒排索引，导致新文档在混合检索中被边缘化；实现上传后自动重建索引并重拼 EnsembleRetriever（否则新索引进不了召回兜）。"),
-    ("b", "工程细节：", "Reranker 输出 numpy.float32 无法直接 JSON 序列化 → 显式 float() 转换；Embedding 模型 / 向量库 / Reranker 均为进程级单例；API Key 走 .env + .gitignore，源码零明文。"),
+    ("kv", "企业知识库 RAG 问答系统（HR 劳动关系合规助手）", ""),
+    ("p", "技术栈：Python / LangChain / ChromaDB / bge-small-zh-v1.5 / BM25(jieba) / CrossEncoder 重排 / FastAPI"),
+    ("b", "混合检索 + 重排，用消融实验量化部件分工：", "向量（bge-small-zh-v1.5）与 BM25（jieba 分词）经 RRF 融合召回，再交 bge-reranker-base 逐对重排取 Top-3；四种策略做成可切换的 mode 跑消融 —— BM25 提升召回（hit@10 0.968 → 1.000），Reranker 提升排序（hit@1 0.677 → 0.742、MRR 0.797 → 0.851），而 MMR 在本语料上是负收益（hit@10 → 0.839），故不设为默认。"),
+    ("b", "零 API 成本的检索评估体系：", "只评召回不评生成（回答质量需 LLM 当裁判，贵且不可复现）。31 条用例 × 6 个指标（hit@1/@3/@k、Recall@k、MRR、nDCG@k）；判据用「来源文件 + 原文子串」而非 chunk id —— id 随切分参数变化，绑死它就无法对切分策略做 A/B。配套自检脚本先证明每条判据逐字成立，首次运行即抓出 6 条错判据。"),
+    ("b", "多知识库与语料工程：", "面向中小企业 HR 的「劳动关系合规助手」——三个互相隔离的知识库（ChromaDB collection）共 1774 块：企业员工手册、本人 4 个项目文档（602 块）、劳动法律法规 7 部（1127 块）。法条单独按「第X条」边界切分，元数据落到 {法律, 版本, 编, 章, 条}，引用可精确到具体条款；按固定字数切会把法条从中间劈开、编号与正文分家。"),
+    ("b", "用评估定位并修复一个生产级缺陷：", "BM25Retriever 未传 metadatas，导致 BM25 召回的块经 RRF 融合后丢失 source、接口 sources 返回 null；同一疏漏还让评估把 BM25 的贡献系统性算成失败。另含上传幂等（块 id 取内容 sha1，重复上传 added=0）与中文 BM25 分词坑（不传 jieba 分词则整句成一个 token）。"),
 
-    ("kv", "手写 AI Agent（独立开发，不使用 LangChain）", "2026.09 – 2026.10"),
+    ("kv", "手写 AI Agent（独立开发，不使用 LangChain）", ""),
     ("p", "技术栈：Python / OpenAI 兼容接口（DeepSeek）/ MCP 2.3 / FastAPI"),
     ("b", "Agent Loop 手写实现：", "完整实现「模型决策 → 解析 tool_calls → 本地执行 → 结果回灌 → 再决策」的多轮循环，含工具注册、参数校验、轮次上限，并覆盖超时 / 参数错 / 模型编造工具名三条错误线。"),
-    ("b", "MCP 文件系统 Server：", "基于 Model Context Protocol 自建文件系统 Server，提供读 / 写 / 列目录 / 搜内容 4 个工具与资源模板；用 Path.resolve() + is_relative_to() 做路径层级白名单防越界 —— 而非字符串前缀匹配，后者会被 docs_bak 这类兄弟目录绕过。"),
+    ("b", "MCP Server：", "基于 Model Context Protocol 自建 Server（7 个工具 + 1 个资源模板：只读资料做成资源、需要模型主动执行的动作才做成工具）；用 Path.resolve() + is_relative_to() 做路径层级白名单防越界 —— 而非字符串前缀匹配，后者会被 docs_bak 这类兄弟目录绕过。"),
     ("b", "Agentic RAG（跨进程）：", "将已有 RAG 服务封装为 Agent 的一个工具，走 HTTP 跨进程调用而非同进程 import，避免把数 GB 的 embedding 依赖装进 Agent 项目。"),
 
-    ("kv", "头条新闻全栈资讯平台（独立开发）", "2026.07 – 2026.09"),
+    ("kv", "头条新闻全栈资讯平台（独立开发）", ""),
     ("p", "技术栈：FastAPI / SQLAlchemy 2.0（异步）/ MySQL / Redis / Vue 3 / Pinia"),
     ("b", "后端：", "设计 6 张数据库表、完成 18 个 RESTful API；分层架构（models → schemas → crud → routers）；Token 认证 + FastAPI Depends 依赖注入全局鉴权；删除 / 修改接口强制携带 user_id 条件防越权。"),
-    ("b", "Redis 缓存层：", "自建 @cached(ttl, key_builder) 装饰器，一行接入 Cache-Aside 缓存，命中响应从 ~100ms 降至 ~2ms；浏览量写入改为 Redis INCR 原子自增 + Write-Behind 定时批量回写，回写用 Lua 脚本实现「原子取回 + 清空」，落库成功才销登记（at-least-once）。"),
-    ("b", "AI 集成：", "后端代理架构（API Key 不外泄）+ httpx.AsyncClient + StreamingResponse 实现 SSE 流式转发。"),
+    ("b", "Redis 与 AI 集成：", "自建 @cached(ttl, key_builder) 装饰器接入 Cache-Aside，命中响应 ~100ms → ~2ms；浏览量改 Redis INCR 原子自增 + Write-Behind 批量回写（Lua 脚本原子取回 + 清空，落库成功才销登记）；AI 走后端代理（API Key 不外泄）+ SSE 流式转发。"),
 
-    ("kv", "智能分拣系统（AI 视觉分拣）　|　团队 5 人 · 本人负责核心链路", "2026.09"),
-    ("p", "技术栈：Python / TensorFlow-Keras（MobileNetV3）/ ultralytics YOLOv8n-cls / Flask / MQTT"),
-    ("b", "自建真值基准，把「整体不达标」收敛到单一原因：", "发现课程验证集准确率自第 1 轮即 100%（纯颜色最近邻不上模型也达 90.2%），判定为样本泄漏并弃用；自建「留一法」真值判据（精度 99.7%）逐帧核对考场 52 帧，把总判断 71.2% 的失分定位到单一半熟类（28 帧仅命中 13 帧 = 46.4%）。"),
-    ("b", "剂量实验 + 用噪声底线否决方案：", "证明补采的 30 张实为「3 视角 × 10 帧」的高度冗余（全量加入反使生桃识别崩 52.5 点），得出每视角 1~3 张即收敛，考场半熟识别率 46.4% → 100%、总判断 71.2% → 98.5%；并以「同配置换随机种子重训」量化噪声底线，据此主动否决两项统计上不可区分的优化方案。"),
+    ("p", "智能分拣系统（AI 视觉分拣）｜团队 5 人 · 本人负责核心链路：发现课程验证集自第 1 轮即 100%（纯颜色最近邻也达 90.2%），判定样本泄漏并弃用；自建「留一法」真值判据（精度 99.7%）把总判断 71.2% 的失分定位到单一半熟类，再经剂量实验得出每视角 1~3 张即收敛 —— 考场半熟识别率 46.4% → 100%、总判断 71.2% → 98.5%。"),
 
-    ("kv", "附加：校园跑腿平台（Java 全栈，含 Spring AI 助手）", "2026.09 – 2026.10"),
-    ("b", "概览：", "Spring Boot 3 三层架构后端（35 个类 / 15 张表）+ JWT 鉴权 + Vue 3 管理端 + uni-app 移动端；并基于 Spring AI 实现 Advisor 拦截链（日志 / 敏感词 / 自定义 Prompt 改写）与流式 Flux 调用。"),
+    ("p", "附加：校园跑腿平台（Java 全栈 · AI 辅助开发 Vibe Coding，我负责业务与框架设计，编码由 AI 产出后验收，含 Spring AI 助手）：Spring Boot 3 三层架构后端（66 个类 / 15 张表）+ JWT 鉴权 + Vue 3 管理端 + uni-app 移动端；并基于 Spring AI 实现 Advisor 拦截链（日志 / 敏感词 / 自定义 Prompt 改写）与流式 Flux 调用。"),
 
     ("h", "技能特长"),
     ("b", "大模型应用：", "RAG 全流程（分段 / Embedding / 向量检索 / 重排）；Hybrid Search（向量 + BM25 + RRF）；Function Calling 与 Agent Loop 手写实现；MCP Server 开发；Prompt 工程；DeepSeek / OpenAI 兼容接口。"),
@@ -99,8 +96,7 @@ CONTENT_AI = COMMON_EDU + [
     ("b", "测试与其他：", "Pytest 接口自动化（数据驱动 + Allure 报告）；Git、Linux、阿里云部署；Java / Spring Boot 有完整项目经验。"),
 
     ("h", "自我评价"),
-    ("b", "能落地，不只调 API：", "RAG 的检索链路、Agent 的循环与工具调用均为手写实现（未使用 LangChain 现成组件），能讲清每一轮模型往返做了什么、失败路径怎么兜。"),
-    ("b", "有工程判断：", "习惯用「副作用是否发生」「换随机种子重跑」这类硬判据验证结论，而不是凭感觉；并据此主动否决过两项看起来有效、但统计上不可区分的优化方案。"),
+    ("b", "能落地且重根因：", "RAG 检索链路、Agent 循环与工具调用均为手写实现，能讲清每一轮模型往返做了什么、失败路径怎么兜；习惯用「副作用是否发生」「换随机种子重跑」这类硬判据验证结论，并据此主动否决过两项统计上不可区分的优化方案。"),
 ]
 
 # ───────────────────────── 三、Java 后端方向 ─────────────────────────
@@ -108,26 +104,26 @@ CONTENT_JAVA = COMMON_EDU + [
     ("p", "主要技能：Java / Spring Boot / MyBatis-Plus / MySQL / Redis / JWT；同时熟练 Python 后端（FastAPI）与大模型应用（RAG / Agent）。"),
 
     ("h", "项目经历"),
-    ("kv", "校园帮 —— 校园生活服务平台（Spring Boot 全栈）", "2026.09 – 2026.10"),
+    ("kv", "校园帮 —— 校园生活服务平台（Spring Boot 全栈）", ""),
     ("p", "项目描述：面向校园生活的跑腿服务平台，覆盖后端服务、后台管理端与微信小程序移动端。"),
     ("p", "技术栈：Java / Spring Boot 3.1.6 / MyBatis-Plus 3.5.3 / MySQL / Redis / JWT（jjwt）/ Druid / Vue 3 + TypeScript / uni-app"),
-    ("b", "后端架构：", "Spring Boot 三层分层架构（controller / service / mapper / entity / dto / config / common / exception），35 个 Java 类、15 张数据库表（用户 / 订单 / 申诉 / 消息 / 通知 / 钱包流水 / 信用记录 / RBAC 权限体系）。"),
+    ("b", "后端架构：", "Spring Boot 三层分层架构（controller / service / mapper / entity / dto / config / common / exception），66 个 Java 类、15 张数据库表（用户 / 订单 / 申诉 / 消息 / 通知 / 钱包流水 / 信用记录 / RBAC 权限体系）。"),
     ("b", "订单模块与鉴权：", "实现订单 6 个接口（列表、详情、新增、编辑、强制取消、逻辑删除），设计订单状态流转与「仅待支付、待接单可编辑」等业务规则；基于 JWT（jjwt）实现管理员登录，通过 HandlerInterceptor 拦截器统一校验 Token，密码用 BCrypt 加密存储。"),
     ("b", "管理端、统计与接口测试：", "实现订单统计 / 趋势等聚合查询接口供 Vue 3 + Element Plus 管理端展示，完成订单与用户管理页面联调；并独立搭建该项目订单模块的 Pytest + Requests + Allure 接口自动化测试（9 条带断言用例 + 报文附加 + MySQL 落库校验）。"),
     ("b", "依赖选型的工程判断：", "密码加密只引 spring-security-crypto 独立小包而不引 spring-boot-starter-security（后者会带出整条安全过滤链，导致所有接口突然要求 Basic 认证）；老师文档指定的 Druid 1.0.9 未实现 JDBC 4.1 的 getObject(int, Class)，MyBatis 读 LocalDateTime 字段会抛 SQLFeatureNotSupportedException，升级至 1.2.20 解决。"),
 
-    ("kv", "校园百事通 —— 基于 Spring AI 的领域智能助手（独立开发）", "2026.10"),
+    ("kv", "校园百事通 —— 基于 Spring AI 的领域智能助手（独立开发）", ""),
     ("p", "技术栈：Spring Boot / Spring AI / DeepSeek API / Maven / JDK 17"),
     ("b", "Advisor 拦截链：", "通过 .defaultAdvisors(...) 挂载三个 Advisor，执行顺序由 getOrder() 决定：日志（SimpleLoggerAdvisor）、敏感词拦截（SafeGuardAdvisor，命中直接返回兜底语、不请求模型）、自定义 BaseAdvisor（用 PromptTemplate 把用户问题改写为「先给结论、再分点解释」的结构）。"),
     ("b", "三种调用模式：", "同步 call()、流式 Flux<String>、PromptTemplate 双占位符；System 人设抽到 resources/prompt/ 下与代码解耦。"),
     ("b", "踩坑与修复：", "讲义示例的 before() 整体替换 Prompt 会丢掉 System 消息导致人设失效 → 改为只重写用户消息、用 prompt.mutate() 保留 System；.system(Resource) 单参重载内部用 Charset.defaultCharset()，中文 Windows 下是 GBK 会把 UTF-8 的 txt 读成乱码 → 显式指定 StandardCharsets.UTF_8。"),
 
-    ("kv", "头条新闻全栈资讯平台（独立开发 · Python 后端）", "2026.07 – 2026.09"),
+    ("kv", "头条新闻全栈资讯平台（独立开发 · Python 后端）", ""),
     ("p", "技术栈：FastAPI / SQLAlchemy 2.0（异步）/ MySQL / Redis / Vue 3 / Pinia"),
     ("b", "后端：", "设计 6 张表、完成 18 个 RESTful API；Token 认证 + Depends 依赖注入全局鉴权；删除 / 修改接口强制携带 user_id 条件防越权。"),
     ("b", "缓存与写入优化：", "自建 @cached(ttl, key_builder) 装饰器接入 Cache-Aside 缓存，命中响应从 ~100ms 降至 ~2ms；浏览量写入改为 Redis INCR 原子自增 + Write-Behind 定时批量回写 MySQL，回写用 Lua 脚本实现「原子取回 + 清空」，落库成功才销登记。"),
 
-    ("p", "智能分拣系统（AI 视觉分拣）｜团队 5 人 · 本人负责核心链路（2026.09）：自建「留一法」真值判据（精度 99.7%）定位训练集覆盖缺口，考场半熟识别率 46.4% → 100%、总判断 71.2% → 98.5%，正式考试 201/202 = 99.50%。"),
+    ("p", "智能分拣系统（AI 视觉分拣）｜团队 5 人 · 本人负责核心链路：自建「留一法」真值判据（精度 99.7%）定位训练集覆盖缺口，考场半熟识别率 46.4% → 100%、总判断 71.2% → 98.5%，正式考试 201/202 = 99.50%。"),
 
     ("h", "技能特长"),
     ("b", "Java 后端：", "Spring Boot 3.x、MyBatis-Plus、Maven、JWT 鉴权、BCrypt、Druid 连接池、AOP、参数校验、全局异常处理。"),
@@ -143,7 +139,7 @@ CONTENT_JAVA = COMMON_EDU + [
 # 内容多的那两套调小一点，尽量压在 1 页内（双选会递纸，1 页最稳）。
 VARIANTS = {
     "测试": ("求职意向：软件测试 / 接口自动化测试　|　期望城市：成都　|　到岗时间：一个月内", CONTENT_测试, 1.05),
-    "AI应用开发": ("求职意向：AI 应用开发 / 大模型应用开发（实习）　|　期望城市：成都　|　到岗时间：一个月内", CONTENT_AI, 0.94),
+    "AI应用开发": ("求职意向：AI 应用开发 / 大模型应用开发（实习）　|　期望城市：成都　|　到岗时间：一个月内", CONTENT_AI, 0.88),
     "Java后端": ("求职意向：Java 后端开发 / 全栈开发（实习）　|　期望城市：成都　|　到岗时间：一个月内", CONTENT_JAVA, 0.92),
 }
 

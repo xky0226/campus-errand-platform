@@ -16,7 +16,7 @@
 			<view v-if="messages.length === 0" class="empty">
 				<view class="empty-icon"><text>AI</text></view>
 				<text class="empty-title">有什么想问的？</text>
-				<text class="empty-desc">回复会一个字一个字地出现，这就是流式输出</text>
+				<text class="empty-desc">回复会一个字一个字地出现，而且它记得你前面说过的话</text>
 				<view class="samples">
 					<view v-for="(s, i) in samples" :key="i" class="sample" hover-class="sample-hover"
 						@click="sendSample(s)">
@@ -52,7 +52,7 @@
 </template>
 
 <script>
-	import { chatStream } from '@/services/ai.js'
+	import { chatStream, resetChatId } from '@/services/ai.js'
 
 	export default {
 		data() {
@@ -121,6 +121,9 @@
 			clearMessages() {
 				if (this.sending) return
 				this.messages = []
+				// 光清空界面不够 —— 后端还存着这个 chatId 的历史，
+				// 不换 ID 的话下一句话模型仍然「记得」刚才聊过什么。
+				resetChatId()
 				this.scrollToBottom()
 			}
 		}

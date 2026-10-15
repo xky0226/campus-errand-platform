@@ -28,6 +28,8 @@
           clearable
           @input="currentPage = 1"
         />
+        <!-- 实名认证是在单独一页处理的（那边只看待审核队列），这里留个入口 -->
+        <el-button @click="goVerify">认证审核</el-button>
       </div>
     </div>
 
@@ -83,12 +85,13 @@
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
         <!-- 操作按钮 -->
-        <el-table-column label="操作" width="230" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="openDetail(row)">详情</el-button>
             <el-button size="small" type="primary" @click="openEdit(row)"
               >编辑</el-button
             >
+            <el-button size="small" @click="openCredit(row)">信用分</el-button>
             <el-button
               size="small"
               :type="row.status === 1 ? 'danger' : 'success'"
@@ -189,13 +192,96 @@
         >
       </template>
     </el-dialog>
+
+    <!--  对话框-信用分历史 + 手动调整  -->
+    <el-dialog
+      v-model="creditVisible"
+      :title="`信用分历史 —— ${creditUser ? creditUser.nickname : ''}`"
+      width="820px"
+    >
+      <div class="credit-head">
+        <div class="credit-now">
+          当前信用分：<b>{{ creditUser ? creditUser.creditScore : "-" }}</b>
+        </div>
+        <div class="credit-form">
+          <el-input-number
+            v-model="creditForm.delta"
+            :precision="0"
+            :min="-500"
+            :max="500"
+            placeholder="变动值"
+            controls-position="right"
+            class="delta-input"
+          />
+          <el-input
+            v-model="creditForm.reason"
+            placeholder="变动原因（必填）"
+            maxlength="64"
+            class="reason-input"
+          />
+          <el-button
+            type="primary"
+            :loading="creditSubmitting"
+            @click="submitCredit"
+            >调整</el-button
+          >
+        </div>
+      </div>
+      <div class="credit-tip">
+        这里填的是<b>变动值</b>（例如 +10、-5），会自动记录一条可追溯的历史。 上面「编辑」弹窗里的信用分是<b>直接设成某个值</b>，不留痕 —— 两者不冲突，但要走留痕就用这里。 扣分最多扣到 0，不会出现负分。
+      </div>
+
+      <el-table :data="creditHistory" v-loading="creditLoading" border max-height="340">
+        <el-table-column label="时间" width="150">
+          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="变动" width="80">
+          <template #default="{ row }">
+            <span :class="row.delta > 0 ? 'delta-up' : 'delta-down'">{{
+              row.delta > 0 ? "+" + row.delta : row.delta
+            }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="beforeScore" label="变动前" width="80" />
+        <el-table-column prop="afterScore" label="变动后" width="80" />
+        <el-table-column prop="reason" label="原因" min-width="180" show-overflow-tooltip />
+        <el-table-column label="关联订单" width="90">
+          <template #default="{ row }">{{
+            row.relatedOrderId ? "#" + row.relatedOrderId : "-"
+          }}</template>
+        </el-table-column>
+        <template #empty>
+          <div class="empty-tip">该用户还没有信用分变动记录</div>
+        </template>
+      </el-table>
+
+      <template #footer>
+        <el-button @click="creditVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { fetchUsers, updateUser } from "@/api/user";
+import {
+  adjustCredit,
+  fetchCreditHistory,
+  fetchUsers,
+  updateUser,
+} from "@/api/user";
+
+const router = useRouter();
+
+// ===== 信用分历史 / 调整 =====
+const creditVisible = ref(false);
+const creditLoading = ref(false);
+const creditSubmitting = ref(false);
+const creditUser = ref(null);
+const creditHistory = ref([]);
+const creditForm = ref(createDefaultCreditForm());
 
 const loading = ref(false);
 const submitting = ref(false);
@@ -315,6 +401,72 @@ function createDefaultForm() {
     role: 0,
     creditScore: 100,
   };
+}
+
+function createDefaultCreditForm() {
+  //delta 默认 null 而不是 0：0 会被后端拒（没有变动就没有意义），
+  //默认 0 的话用户点「调整」必然先吃一次报错
+  return { delta: null, reason: "" };
+}
+
+function goVerify() {
+  router.push("/verify");
+}
+
+async function openCredit(row) {
+  creditUser.value = row;
+  creditForm.value = createDefaultCreditForm();
+  creditVisible.value = true;
+  await loadCreditHistory(row.id);
+}
+
+async function loadCreditHistory(userId) {
+  creditLoading.value = true;
+  try {
+    creditHistory.value = (await fetchCreditHistory(userId)) || [];
+  } finally {
+    creditLoading.value = false;
+  }
+}
+
+async function submitCredit() {
+  const delta = creditForm.value.delta;
+  if (delta === null || delta === undefined || delta === 0) {
+    ElMessage.warning("请填写不为 0 的信用分变动值");
+    return;
+  }
+  if (!creditForm.value.reason.trim()) {
+    ElMessage.warning("请填写变动原因");
+    return;
+  }
+  creditSubmitting.value = true;
+  try {
+    //后端返回的就是刚写进去的那条历史记录
+    const record = await adjustCredit(
+      creditUser.value.id,
+      delta,
+      creditForm.value.reason.trim()
+    );
+    //扣分扣穿 0 时后端记的是「实际变动」，和填的值可能不一样，得如实告诉管理员，
+    //不然界面上显示 -500 历史里是 -110，会被当成 bug
+    if (record && record.delta !== delta) {
+      ElMessage.success(
+        `信用分已调整：实际变动 ${record.delta > 0 ? "+" + record.delta : record.delta}` +
+          `（该用户最低只能扣到 0 分）`
+      );
+    } else {
+      ElMessage.success("信用分已调整");
+    }
+    creditForm.value = createDefaultCreditForm();
+    await loadCreditHistory(creditUser.value.id);
+    //分数变了，列表里的「信用分」列也得跟着刷新
+    await loadUsers();
+    //列表刷新会把 row 换成新对象，弹窗标题读的还是旧引用，同步一下
+    const fresh = users.value.find((u) => u.id === creditUser.value.id);
+    if (fresh) creditUser.value = fresh;
+  } finally {
+    creditSubmitting.value = false;
+  }
 }
 
 function openDetail(row) {
@@ -457,5 +609,59 @@ function formatDateTime(value) {
   color: #94a3b8;
   font-size: 12px;
   line-height: 1.6;
+}
+
+.credit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.credit-now b {
+  color: #6366f1;
+  font-size: 20px;
+}
+
+.credit-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delta-input {
+  width: 130px;
+}
+
+.reason-input {
+  width: 240px;
+}
+
+.credit-tip {
+  margin-bottom: 16px;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.credit-tip b {
+  color: #64748b;
+}
+
+.delta-up {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.delta-down {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.empty-tip {
+  padding: 30px 0;
+  color: #94a3b8;
 }
 </style>

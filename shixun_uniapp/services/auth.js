@@ -23,3 +23,10 @@ export function updateProfile(data) {
 export function switchRole(role) {
 	return post('/auth/switch-role?role=' + role)
 }
+
+//提交实名认证资料，提交后状态变成「审核中」，等管理端在「认证审核」页处理。
+//照片要先走 services/upload.js 传到 /files/upload 拿到路径，这里只传路径。
+//注意 studentId 只是原样回传做一致性校验，后端不会改它 —— 学号同时是登录账号。
+export function submitVerify(data) {
+	return post('/auth/verify', data)
+}

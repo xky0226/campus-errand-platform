@@ -4,7 +4,9 @@
 //  2) 后端没有配 server.servlet.context-path，路径里没有 /api
 //     （campus-admin 是靠 vite proxy 的 rewrite 把 /api 剥掉的，小程序没有这层代理）。
 // 所以这里只写到端口，页面里直接写业务路径。
-const BASE_URL = 'http://localhost:8088'
+// 导出给 services/upload.js 用：uni.uploadFile 走不了这个 request 封装
+// （它是 multipart，不是 JSON），但得用同一个后端地址，不能各写各的。
+export const BASE_URL = 'http://localhost:8088'
 
 // 定义一个请求函数【封装请求】
 function request(method, url, data = {}, skipAuth = false) {
@@ -39,6 +41,15 @@ function request(method, url, data = {}, skipAuth = false) {
 					resolve(null)
 				} else {
 					console.error('接口请求失败:', url, res.data)
+					// 业务失败（比如钱包余额不足）时后端会把原因写在 message 里，
+					// 统一弹个 toast，不然页面只能看到「操作失败」，不知道到底为什么
+					const message = res.data && res.data.message
+					if (message && message !== 'success') {
+						uni.showToast({
+							title: message,
+							icon: 'none'
+						})
+					}
 					resolve(null)
 				}
 			},

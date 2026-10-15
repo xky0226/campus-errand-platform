@@ -1,5 +1,6 @@
 package com.example.campus.service.impl;
 
+import com.example.campus.dto.AdminOrderQuery;
 import com.example.campus.dto.AdminOrderRequest;
 import com.example.campus.dto.OrderCreateRequest;
 import com.example.campus.common.BusinessException;
@@ -8,6 +9,7 @@ import com.example.campus.entity.Users;
 import com.example.campus.mapper.OrdersMapper;
 import com.example.campus.mapper.UsersMapper;
 import com.example.campus.service.IOrdersService;
+import com.example.campus.service.IWalletService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,9 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
     @Autowired
     UsersMapper userMapper;
 
+    @Autowired
+    IWalletService walletService;
+
     //    定义一个方法来所有订单根据id查询用户的name信息
     private void fillUserNames(List<Orders> orders) {
         //遍历订单集合
@@ -61,10 +66,52 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
     @Override
     public List<Orders> listOrders() {
+        //不带条件查询就是查全部，和加条件的是同一条代码路径，避免两份筛选逻辑各写一半
+        return listOrders(new AdminOrderQuery());
+    }
+
+    @Override
+    public List<Orders> listOrders(AdminOrderQuery query) {
+        AdminOrderQuery q = query == null ? new AdminOrderQuery() : query;
+
         //构建条件构造器对象
         LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
         //设置条件
-        queryWrapper.eq(Orders::getDeleted,0);//没有删除的状态
+        queryWrapper.eq(Orders::getDeleted, 0);//没有删除的状态
+
+        //状态筛选：不传表示全部
+        if (q.getStatus() != null) {
+            queryWrapper.eq(Orders::getStatus, q.getStatus());
+        }
+
+        String keyword = q.getKeyword() == null ? "" : q.getKeyword().trim();
+        if (!keyword.isEmpty()) {
+            //orders 表只有 publisher_id / runner_id，没有昵称列，而管理端的搜索框
+            //一直是可以按发布者和跑腿员搜的（改之前是前端在内存里 filter）。
+            //筛选既然挪到了数据库侧，就得先在 users 里把匹配的人捞出来，
+            //再拼一个「in 这些人」，否则按昵称搜会一个订单都搜不到。
+            List<Long> userIds = userMapper.selectList(new LambdaQueryWrapper<Users>()
+                            .select(Users::getId)
+                            .eq(Users::getDeleted, 0)
+                            .and(u -> u.like(Users::getNickname, keyword)
+                                    .or().like(Users::getRealName, keyword)
+                                    .or().like(Users::getStudentId, keyword)))
+                    .stream().map(Users::getId).toList();
+
+            queryWrapper.and(w -> {
+                //第一个 like 不能带 or()，否则拼出来是「AND ( OR xxx)」，SQL 直接报错
+                w.like(Orders::getOrderNo, keyword)
+                        .or().like(Orders::getTaskType, keyword)
+                        .or().like(Orders::getDescription, keyword)
+                        .or().like(Orders::getPickupLocation, keyword)
+                        .or().like(Orders::getDeliveryLocation, keyword);
+                if (!userIds.isEmpty()) {
+                    w.or().in(Orders::getPublisherId, userIds)
+                            .or().in(Orders::getRunnerId, userIds);
+                }
+            });
+        }
+
         queryWrapper.orderByDesc(Orders::getCreatedAt);//根据时间做降序排序
         //查询
         List<Orders> orders = ordersMapper.selectList(queryWrapper);
@@ -166,7 +213,13 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         order.setId(orderId);
         order.setStatus(5);//5 已取消
         order.setCancelledAt(LocalDateTime.now());
-        return ordersMapper.updateById(order) > 0;
+        boolean updated = ordersMapper.updateById(order) > 0;
+
+        //【订单支付打通钱包】管理员强制取消已支付的订单，同样要把托管资金退回发布者
+        if (updated && Integer.valueOf(1).equals(exist.getPaymentStatus())) {
+            walletService.refundToPublisher(exist.getPublisherId(), orderId, exist.getReward(), "订单被强制取消退款");
+        }
+        return updated;
     }
 
     @Override
@@ -274,6 +327,10 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
             throw new BusinessException("订单当前状态不可支付");
         }
 
+        //【订单支付打通钱包】从发布者的钱包扣款，钱先冻结在平台（托管），
+        //等订单确认完成后才结算给跑腿员。余额不足会在这里抛异常，订单状态不会被改。
+        walletService.payForOrder(userId, orderId, order.getReward());
+
         order.setPaymentStatus(1);
         order.setStatus(1);
         //pay_time 在 DDL 里是 varchar(50)，所以这里用字符串存
@@ -337,6 +394,14 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         order.setCompletedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
         ordersMapper.updateById(order);
+
+        //【订单支付打通钱包】订单完成，把平台托管的赏金结算给跑腿员，同时累加他的累计收益。
+        //平台抽成按现有口径走 orders.platform_fee（发布订单时写的是 0），
+        //所以这里结算的是 runner_earnings 而不是完整的 reward。
+        BigDecimal settleAmount = order.getRunnerEarnings() != null
+                ? order.getRunnerEarnings() : order.getReward();
+        walletService.settleToRunner(order.getPublisherId(), order.getRunnerId(), orderId, settleAmount);
+
         return getOrderDetail(orderId);
     }
 
@@ -355,6 +420,11 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         }
         if (order.getStatus() == 5) {
             return getOrderDetail(orderId);
+        }
+
+        //【订单支付打通钱包】已支付的订单取消，把平台托管的赏金退回发布者钱包
+        if (Integer.valueOf(1).equals(order.getPaymentStatus())) {
+            walletService.refundToPublisher(order.getPublisherId(), orderId, order.getReward(), "订单取消退款");
         }
 
         //reason 目前只透传没落库：orders 表没有取消原因字段

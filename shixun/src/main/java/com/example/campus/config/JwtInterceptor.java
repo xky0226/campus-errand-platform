@@ -42,6 +42,14 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // /error 是容器的错误转发入口：任何 404 / 500 最后都会转发到这里。
+        // 它要是也被拦，所有错误就都被改写成 401「请先登录」，真实原因全被盖掉
+        // （排查 /files/** 取图 404 时就是这么被绕进去的）。必须放行。
+        if (path.endsWith("/error")) {
+            log.info("错误转发，跳过验证: {}", path);
+            return true;
+        }
+
         // 白名单：不需要 token 的公开接口
         String[] whiteList = {
                 "/auth/login",
@@ -69,8 +77,11 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 静态资源文件（图片等）跳过验证
-        if (path.contains("/files/") || path.contains("/uploads/") || path.contains("/avatars/")) {
+        // 静态资源文件（图片等）跳过验证。
+        // 注意这里必须限定 GET：上传接口是 POST /files/upload，路径里同样含 "/files/"，
+        // 不限定方法的话上传会跟着一起免登录，任何人都能往服务器塞文件。
+        if ("GET".equalsIgnoreCase(method)
+                && (path.contains("/files/") || path.contains("/uploads/") || path.contains("/avatars/"))) {
             log.info("静态资源文件，跳过验证: {}", path);
             return true;
         }

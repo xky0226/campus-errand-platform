@@ -19,6 +19,14 @@ spring:
       host: 127.0.0.1
       port: 6379
 
+  # ===== 文件上传（申诉证据图 / 学生证照片）=====
+  # Spring Boot 默认 max-file-size 只有 1MB，不放开的话 5MB 的图在进 Controller 之前
+  # 就被容器拒掉了，FileController 里那句「不能超过 5MB」根本轮不到执行。
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
 mybatis-plus:
   global-config:
     db-config:
@@ -35,6 +43,16 @@ jwt:
   # 机器上没设就用冒号后面这个默认值。
   secret: ${JWT_SECRET:campus-help-secret-key-2024-very-long-secret-key}
   expiration: 7200000   # 毫秒，= 2 小时
+
+# ===== 图片上传（申诉证据图、学生证照片）=====
+campus:
+  upload:
+    # 落盘目录。相对路径以「启动时的工作目录」为基准，跑 mvn spring-boot:run 时
+    # 就是 shixun/ 这一层，所以图片会落在 shixun/uploads/ 下。
+    dir: ${CAMPUS_UPLOAD_DIR:uploads}
+    # 对外访问前缀。WebConfig 会把它映射成静态资源，前端拿到 /files/2026/10/15/xxx.png
+    # 拼上自己的 base-url 就能直接 <image src> 打开。
+    url-prefix: /files
 
 # ===== 微信小程序（/auth/wx-login 用 code 换 openid 时用）=====
 # 讲义「4、移动端-构建」7.3 节只说了要调微信接口，没给配置。
