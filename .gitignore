@@ -65,15 +65,14 @@ settings.xml
 # 而且「我做了什么」的证据是代码，不是交给老师的报告。
 大报告/
 
-# tools/ 下这批是报告生成器与调试草稿：build_dabao.py 是生成器，
-# _cc.txt / _dbg.txt / _wins.txt 是抓下来的临时 dump —— 里面有明文 DB 口令。
-# 只保留 build_resume.py（已经在库里的那个）。
-tools/_*
-tools/build_dabao.py
-tools/build_dabao_fill.py
-tools/finish_dabao.py
-tools/shots.py
-tools/wins.py
+# tools/ 下只保留 build_resume.py（已经在库里的那个），其余一律不进仓库：
+# build_dabao*.py / finish_dabao.py 是报告生成器，_cc.txt / _dbg*.txt / _users.txt
+# 是抓下来的临时 dump —— 里面有明文 DB 口令和学生名单，shots / wins / shot_ai /
+# wincap 是各种抓图脚本（Chrome 截屏、Windows 窗口 PrintWindow）。
+# 与其一个个列（新加一个就漏一个，shot_ai.py 就是这么漏进来的），
+# 不如反过来写：默认全排除，只放行那一个。
+tools/*
+!tools/build_resume.py
 
 # ── 运行期上传的文件（接口真的往盘上写过东西）──
 # 这些是跑接口测试时产生的，机器不同内容就不同，属于运行产物。
