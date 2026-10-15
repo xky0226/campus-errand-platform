@@ -183,6 +183,9 @@
 	.msg-list {
 		flex: 1;
 		padding: 8rpx 28rpx;
+		/* 同 order/chat.vue：flex:1 定的是 390 宽，padding 默认加在外面，
+		   不写这行 scroll-view 会宽出 29px，右侧内容被切。 */
+		box-sizing: border-box;
 	}
 
 	.empty {

@@ -163,6 +163,10 @@
 	.msg-list {
 		flex: 1;
 		padding: 20rpx 28rpx;
+		/* flex:1 只定宽度（390），padding 会再加在两边 —— 默认 content-box 时
+		   这个 scroll-view 实际有 419 宽，右边 15px 被切掉（自己发的气泡和
+		   时间戳正好在右边，看起来像被裁了）。加这一行让宽度含 padding。 */
+		box-sizing: border-box;
 	}
 
 	/* 空状态 */
