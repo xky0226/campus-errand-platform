@@ -50,8 +50,11 @@
 		data() {
 			return {
 				form: {
-					username: '2021001001',
-					password: '123456'
+					// 原来这里预填了演示账号（学号 + 口令），方便演示时一键登录。
+					// 但这个仓库是公开的：预填等于把一个账号的口令写在明面上，
+					// 而那个口令恰好也是本机 MySQL 的 root 口令。演示时手输一遍就行。
+					username: '',
+					password: ''
 				},
 				loading: false
 			}

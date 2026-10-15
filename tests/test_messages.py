@@ -11,9 +11,11 @@
 这不是加行删行能解决的，得把原有 7 条种子消息的 is_read 改回原值，
 否则跑一轮测试库里就多出一堆「已读」，报告截图和种子数据对不上。
 
-用到的账号都来自 campus.sql 的种子数据，密码统一是 123456：
+用到的账号都来自 campus.sql 的种子数据：
     id=2  张同学         2021001001  订单 9 / 11 的发布者
     id=6  快递小哥小陈    2020002001  订单 9 的跑腿员
+学号不算秘密（能猜），口令算 —— 所以口令走 tests/.env 里的 DEMO_PASSWORD，
+不写死在本文件里（理由和 conftest.py 一样：仓库是公开的）。
 「陌生人」则是一次性注册的，测完物理删除，users 表回到 73 行。
 """
 import json
@@ -23,7 +25,7 @@ import allure
 import pytest
 import requests
 
-from conftest import AUTH_HEADERS, BASE_URL, db_connect
+from conftest import AUTH_HEADERS, BASE_URL, db_connect, need_env
 
 FEATURE = "订单聊天模块"
 
@@ -39,8 +41,11 @@ APPEAL_SEED_MESSAGE_COUNT = 3        # 订单 11 有 3 条消息（id 5~7）
 # 消息内容上限，和 MessagesServiceImpl.MAX_CONTENT_LENGTH 对齐
 MAX_CONTENT_LENGTH = 500
 
-PUBLISHER = ("2021001001", "123456")
-RUNNER = ("2020002001", "123456")
+# 两个种子账号的口令是同一个（campus.sql 里存的是 bcrypt 哈希，明文只有本机知道）
+DEMO_PASSWORD = need_env("DEMO_PASSWORD", "campus.sql 种子演示账号的口令")
+
+PUBLISHER = ("2021001001", DEMO_PASSWORD)
+RUNNER = ("2020002001", DEMO_PASSWORD)
 
 # 种子消息里 is_read 的原始值，收尾时照这个改回去（见文件头说明）
 SEED_IS_READ = {1: 1, 2: 0, 3: 1, 4: 0, 5: 1, 6: 1, 7: 0}
@@ -142,7 +147,10 @@ def bystander():
         json={
             "nickname": "闲聊路人",
             "username": student_id,
-            "password": "123456",
+            # 这口令是给「测完就删」的一次性账号用的，注册返回里直接带 token，
+            # 后面不会再拿它登录，所以随便什么都行 —— 这里跟着 DEMO_PASSWORD 走，
+            # 免得源码里再出现一个写死的明文口令。
+            "password": DEMO_PASSWORD,
             "phone": "13900000000",
         },
         timeout=10,

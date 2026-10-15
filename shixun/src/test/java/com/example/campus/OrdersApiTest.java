@@ -58,6 +58,32 @@ class OrdersApiTest {
     /** 登录拿到的 token，第一次用到时去换，之后复用。 */
     private String cachedAdminToken;
 
+    /** 管理员账号：adminLogin 按 real_name 查，所以填真实姓名，不是学号。 */
+    private static final String ADMIN_NAME = "管理员";
+
+    /**
+     * 从环境变量取一个口令，没设就抛错 —— **不给兜底默认值**。
+     *
+     * <p>这个仓库是公开的，所以管理员口令不能写死在源码里（和 tests/conftest.py
+     * 那边同一个理由、同一个变量名）。给默认值等于又把口令写回仓库，那这一趟就白改了。
+     *
+     * <p>怎么设：
+     * <ul>
+     *   <li>IDEA：Run/Debug Configurations → Environment variables 里加 ADMIN_PASSWORD</li>
+     *   <li>命令行：{@code set ADMIN_PASSWORD=... && mvn test}</li>
+     * </ul>
+     */
+    private static String requireEnv(String name) {
+        String v = System.getenv(name);
+        if (v == null || v.isEmpty()) {
+            throw new IllegalStateException(
+                    "环境变量 " + name + " 没设 —— 管理员登录口令。"
+                            + "IDEA 里加进 Run Configuration 的环境变量，"
+                            + "或命令行先 set " + name + "=... 再跑 mvn test。");
+        }
+        return v;
+    }
+
     /**
      * 管理员登录取 token。
      *
@@ -72,8 +98,8 @@ class OrdersApiTest {
     private String adminToken() throws Exception {
         if (cachedAdminToken == null) {
             byte[] loginBody = objectMapper.writeValueAsBytes(Map.of(
-                    "username", "管理员",   // 管理员：adminLogin 按 real_name 查
-                    "password", "admin123"));
+                    "username", ADMIN_NAME,
+                    "password", requireEnv("ADMIN_PASSWORD")));
 
             MvcResult result = mockMvc.perform(post("/auth/admin-login")
                     .contentType(MediaType.APPLICATION_JSON)

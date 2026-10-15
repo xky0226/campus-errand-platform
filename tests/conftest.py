@@ -32,7 +32,7 @@ if _ENV_FILE.exists():
         os.environ.setdefault(_k.strip(), _v.strip())
 
 
-def _need(name: str, hint: str) -> str:
+def need_env(name: str, hint: str) -> str:
     """取一个口令类环境变量，缺了直接报错，不给兜底默认值。
 
     给默认值 = 又把口令写回仓库，那这一趟就白改了。
@@ -55,7 +55,7 @@ BASELINE_ALIVE = 74
 # 所以这里填的是真实姓名，不是 student_id / open_id。
 # 姓名不算秘密（能猜），口令算 —— 所以只有后者走环境变量。
 ADMIN_NAME = "管理员"
-ADMIN_PASSWORD = _need("ADMIN_PASSWORD", "管理员账号的口令")
+ADMIN_PASSWORD = need_env("ADMIN_PASSWORD", "管理员账号的口令")
 
 # 登录后拿到 token 就原地塞进这个 dict。
 # test_orders_crud.py 用 `from conftest import AUTH_HEADERS` 拿到的是同一个对象，
@@ -66,7 +66,7 @@ DB_CONFIG = {
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": _need("DB_PASSWORD", "本机 MySQL 的 root 口令"),
+    "password": need_env("DB_PASSWORD", "本机 MySQL 的 root 口令"),
     "database": "campus",
     "charset": "utf8mb4",
     "autocommit": True,
