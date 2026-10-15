@@ -5,13 +5,22 @@ spring:
   application:
     name: campus
 
+  # 本机开发用的真实口令放 application-local.yml（已被 .gitignore 忽略）。
+  # 这个文件不进仓库 —— 克隆下来的人得先 `cp application-local.yml.example
+  # application-local.yml` 填上自己的值，否则下面 DB_PASSWORD / JWT_SECRET
+  # 两个占位符解析不出来，启动就会报 Could not resolve placeholder。这是有意的。
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
   # ===== 数据库（Druid 连接池）=====
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/campus?serverTimezone=Hongkong&allowMultiQueries=true&useUnicode=true&useSSL=false&characterEncoding=utf8&allowPublicKeyRetrieval=true
     username: root
-    password: 123456
+    # 只读占位符，不留默认值。原本这里写死 123456 并提交 ——
+    # 公开一个「看起来是随手写的」口令，本身比口令泄露更减分。
+    password: ${DB_PASSWORD}
 
   # ===== Redis（本机 Redis 没设密码，所以 password 留空）=====
   data:
@@ -39,9 +48,11 @@ mybatis-plus:
 # ===== JWT（管理员登录签发 token 用）=====
 jwt:
   # 至少要 32 字节（256 位），否则 Keys.hmacShaKeyFor 会抛 WeakKeyException。
-  # 这里是 46 字符 → 自动选 HS384。${JWT_SECRET:...} 表示优先读环境变量，
-  # 机器上没设就用冒号后面这个默认值。
-  secret: ${JWT_SECRET:campus-help-secret-key-2024-very-long-secret-key}
+  # 本机那串是 46 字符 → 自动选 HS384。
+  # 注意这里**没有** `${JWT_SECRET:默认值}` 那个兜底 —— 签名密钥一旦公开，
+  # 任何人都能自己签一个合法 token 冒充任意用户，比数据库口令严重得多。
+  # 宁可启动时直接报错，也不留一个「反正是默认值」的密钥在仓库里。
+  secret: ${JWT_SECRET}
   expiration: 7200000   # 毫秒，= 2 小时
 
 # ===== 图片上传（申诉证据图、学生证照片）=====

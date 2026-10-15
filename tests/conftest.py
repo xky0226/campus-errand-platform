@@ -1,10 +1,12 @@
 """校园帮订单接口 pytest 公共配置。
 
-被测服务：Spring Boot 后端 http://localhost:8088，库 campus（root/123456）。
+被测服务：Spring Boot 后端 http://localhost:8088，库 campus（账号 root，
+口令走环境变量，不写在本文件里）。
 
 收尾原则：用例自己建的订单，测完要清掉。这里用**物理删除**而不是接口的逻辑删除——
 逻辑删除只是把 deleted 置 1，行还留在表里，总行数就跟基线对不上了。
 """
+import os
 import sys
 from pathlib import Path
 
@@ -14,6 +16,36 @@ import requests
 
 BASE_URL = "http://localhost:8088"
 
+# ===== 口令从哪来 =====
+# 这个仓库是公开的，所以 MySQL 口令和管理员口令都不能写死在源码里。
+# 值放 tests/.env（已被 .gitignore 忽略），一行一个 KEY=VALUE，
+# 照 tests/.env.example 复制一份填上就行。
+# 也可以不建文件，跑之前直接 export —— 两种都认；这里用 setdefault，
+# 所以你已经设过的环境变量不会被文件盖掉。
+_ENV_FILE = Path(__file__).parent / ".env"
+if _ENV_FILE.exists():
+    for _line in _ENV_FILE.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _k, _v = _line.split("=", 1)
+        os.environ.setdefault(_k.strip(), _v.strip())
+
+
+def _need(name: str, hint: str) -> str:
+    """取一个口令类环境变量，缺了直接报错，不给兜底默认值。
+
+    给默认值 = 又把口令写回仓库，那这一趟就白改了。
+    """
+    v = os.environ.get(name)
+    if not v:
+        raise RuntimeError(
+            f"环境变量 {name} 没设 —— {hint}。"
+            f"把 tests/.env.example 复制成 tests/.env 填上，"
+            f"或者先 export {name}=... 再跑 pytest。"
+        )
+    return v
+
 # 库里的底稿数据：94 行，其中 74 条未删除。测试不得改动这些数据。
 # 74 = 原始 72 条 + 手工留的测试单 id=168 + 2026-09-24 在小程序里实测发布的一单 id=169。
 # 这是硬编码的基线：只要再往库里加单（比如演示时发布订单），这个数就要跟着改。
@@ -21,8 +53,9 @@ BASELINE_ALIVE = 74
 
 # 管理员账号。注意：adminLogin 是按 real_name 查的（讲义实现），
 # 所以这里填的是真实姓名，不是 student_id / open_id。
+# 姓名不算秘密（能猜），口令算 —— 所以只有后者走环境变量。
 ADMIN_NAME = "管理员"
-ADMIN_PASSWORD = "admin123"
+ADMIN_PASSWORD = _need("ADMIN_PASSWORD", "管理员账号的口令")
 
 # 登录后拿到 token 就原地塞进这个 dict。
 # test_orders_crud.py 用 `from conftest import AUTH_HEADERS` 拿到的是同一个对象，
@@ -33,7 +66,7 @@ DB_CONFIG = {
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "123456",
+    "password": _need("DB_PASSWORD", "本机 MySQL 的 root 口令"),
     "database": "campus",
     "charset": "utf8mb4",
     "autocommit": True,

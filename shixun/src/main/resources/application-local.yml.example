@@ -1,0 +1,20 @@
+# ===== 本机配置样例 =====
+#
+# 用法：复制成 application-local.yml（同名去掉 .example），填上自己机器上的值。
+# application-local.yml 已被 .gitignore 忽略，不会进版本库。
+#
+# 为什么要有这个文件：
+# application.yml 里数据库口令和 JWT 密钥都写成了 ${DB_PASSWORD} / ${JWT_SECRET}
+# 占位符，且**没有默认值** —— 所以没有本文件时应用会直接启动失败，报
+# "Could not resolve placeholder 'DB_PASSWORD'"。这是故意的：这个仓库是公开的，
+# 宁肯让克隆的人多一步配置，也不把口令和签名密钥提交上去。
+#
+# 另一种等价做法：不建这个文件，直接设环境变量 DB_PASSWORD / JWT_SECRET 也行
+# （Spring 的占位符解析会读环境变量，只是路径比配置文件难查）。
+
+# 本机 MySQL 口令（application.yml 里 username 是 root）
+DB_PASSWORD: your-mysql-password
+
+# JWT 签名密钥。HS384 要求 ≥48 字节，随便生成一串长随机就行，例如：
+#   python -c "import secrets,string; print(''.join(secrets.choice(string.ascii_letters+string.digits) for _ in range(48)))"
+JWT_SECRET: generate-your-own-48-byte-random-string-here-please
